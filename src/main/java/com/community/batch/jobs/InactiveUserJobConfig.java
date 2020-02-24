@@ -10,7 +10,6 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
 import org.springframework.batch.item.support.ListItemReader;
@@ -80,7 +79,7 @@ public class InactiveUserJobConfig {
 
     @Bean(destroyMethod = "")
     @StepScope
-    public JpaPagingItemReader<User> inactiveUserJpaReader(@Value("#{jobParameters[nowDate]}") Date nowDate) {
+    public JpaPagingItemReader<User> inactiveUserJpaReader(@Value("#{jobParameters['nowDate']}") Date nowDate) {
         JpaPagingItemReader<User> jpaPagingItemReader = new JpaPagingItemReader<User>() {
             @Override
             public int getPage() {
