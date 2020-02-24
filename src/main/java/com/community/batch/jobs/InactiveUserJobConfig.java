@@ -29,7 +29,7 @@ import java.util.Map;
 @Configuration
 public class InactiveUserJobConfig {
 
-    private final static int CHUNK_SIZE = 5;
+    private final static int CHUNK_SIZE = 8;
 
     private final EntityManagerFactory entityManagerFactory;
 
