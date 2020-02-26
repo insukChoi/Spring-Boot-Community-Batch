@@ -2,13 +2,19 @@ package com.community.batch.jobs;
 
 import com.community.batch.domain.User;
 import com.community.batch.domain.enums.UserStatus;
+import com.community.batch.jobs.listener.InactiveJobListener;
+import com.community.batch.jobs.listener.InactiveStepListener;
 import com.community.batch.repository.UserRepository;
+import javafx.scene.layout.FlowPane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.job.builder.FlowBuilder;
+import org.springframework.batch.core.job.flow.Flow;
+import org.springframework.batch.core.job.flow.FlowExecutionStatus;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.database.JpaItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
@@ -41,18 +47,31 @@ public class InactiveUserJobConfig {
     }
 
     @Bean
-    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory, Step inactiveJobStep) {
+    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory, InactiveJobListener inactiveJobListener, Flow inactiveJobFlow) {
         return jobBuilderFactory.get("inactiveUserJob")
                 .preventRestart()
-                .start(inactiveJobStep)
+                .listener(inactiveJobListener)
+                .start(inactiveJobFlow)
+                .end()
                 .build();
+    }
+
+    @Bean
+    public Flow inactiveJobFlow(Step inactiveJobStep){
+        FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("inactiveJobFlow");
+        return flowBuilder
+                .start(new InactiveJobExecutionDecider())
+                .on(FlowExecutionStatus.COMPLETED.getName()).to(inactiveJobStep)
+                .on(FlowExecutionStatus.FAILED.getName()).end()
+                .end();
     }
 
 
     @Bean
-    public Step inactiveJobStep(StepBuilderFactory stepBuilderFactory, JpaPagingItemReader<User> inactiveUserJpaReader){
+    public Step inactiveJobStep(StepBuilderFactory stepBuilderFactory, InactiveStepListener inactiveStepListener, JpaPagingItemReader<User> inactiveUserJpaReader){
         return stepBuilderFactory.get("inactiveUserStep")
                 .<User, User> chunk(CHUNK_SIZE)
+                .listener(inactiveStepListener)
                 .reader(inactiveUserJpaReader)
                 .processor(inactiveUserProcessor())
                 .writer(inactiveUserWriter())
@@ -88,6 +107,7 @@ public class InactiveUserJobConfig {
         };
         jpaPagingItemReader.setQueryString("select u from User as u where u.updatedDate < :updatedDate and u.status = :status");
         Map<String, Object> map = new HashMap<>();
+        System.out.println("nowDate = " + nowDate);
         LocalDateTime now = LocalDateTime.ofInstant(nowDate.toInstant(), ZoneId.systemDefault());
         map.put("updatedDate", now.minusYears(1));
         map.put("status", UserStatus.ACTIVE);
